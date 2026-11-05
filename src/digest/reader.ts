@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { DigestRow, ReadNight, RunStatus } from './types.js';
+import type { DigestRow, ReadNight, RunStatus, RunStatusCounts } from './types.js';
 
 type Run = {
   at: string;
@@ -51,6 +51,7 @@ export const readNight: ReadNight = (runsDir, night) => {
 
   const rows = new Map<string, DigestRow>();
   let malformedLines = 0;
+  const statusCounts: RunStatusCounts = { ok: 0, retry: 0, fail: 0 };
 
   for (const line of lines) {
     const run = parseRun(line);
@@ -58,6 +59,8 @@ export const readNight: ReadNight = (runsDir, night) => {
       malformedLines += 1;
       continue;
     }
+
+    statusCounts[run.status] += 1;
 
     const row = rows.get(run.job);
     if (!row) {
@@ -82,5 +85,5 @@ export const readNight: ReadNight = (runsDir, night) => {
     row.lastAt = run.at;
   }
 
-  return { rows: [...rows.values()], malformedLines };
+  return { rows: [...rows.values()], malformedLines, statusCounts };
 };
