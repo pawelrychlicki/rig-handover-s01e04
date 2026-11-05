@@ -42,5 +42,24 @@ export function createApp(config: RigConfig = loadConfig()) {
     }
   });
 
+  app.get('/api/digest/:night', (c) => {
+    const night = c.req.param('night');
+
+    try {
+      const digest = readNight(config.runsDir, night);
+      const rows = [...digest.rows].sort((a, b) => a.job.localeCompare(b.job));
+      return c.json({ ...digest, rows });
+    } catch (error) {
+      if (
+        error instanceof RangeError ||
+        (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      ) {
+        return c.notFound();
+      }
+
+      throw error;
+    }
+  });
+
   return app;
 }
