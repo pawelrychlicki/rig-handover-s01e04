@@ -88,8 +88,8 @@ Done when: the preview link no longer shows the lane marker.
 | 3 | Render the digest page: GET /digest/:night | #1 |
 | 4 | Serve digest rows as JSON: GET /api/digest/:night | #1 |
 | 5 | Link nights to digest pages with status counts | #1 |
-| 6 | Test the digest routes | #3, #4 |
-| 7 | Publish the morning digest preview | #3 |
+| 6 | Test the digest routes | #1 (green run needs #3, #4) |
+| 7 | Publish the morning digest preview | #2, #3 |
 | 8 | Remove the lane marker and file the plan | #7 |
 
 The preview's marker was removed on 2026-11-05 (same link, rendered with `LANE_MARKER` unset). See ADR 0003.
