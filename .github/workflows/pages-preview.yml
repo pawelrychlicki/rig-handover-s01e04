@@ -3,11 +3,11 @@ name: Digest preview
 on:
   workflow_dispatch:
     inputs:
-      lane_marker:
-        description: Optional lane marker for the preview banner; leave blank to omit it
+      with_marker:
+        description: Include the lane marker (from the LANE_MARKER repo secret) in the banner
         required: false
-        type: string
-        default: ''
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,7 +38,8 @@ jobs:
 
       - name: Render digest to one HTML file
         env:
-          LANE_MARKER: ${{ inputs.lane_marker }}
+          # Secret, not an input: inputs are stored in public run metadata; secrets are masked.
+          LANE_MARKER: ${{ inputs.with_marker && secrets.LANE_MARKER || '' }}
         run: |
           set -euo pipefail
           mkdir -p _site
@@ -63,6 +64,10 @@ jobs:
             http://127.0.0.1:8787/digest/2026-10-28 \
             --output _site/index.html
           test -s _site/index.html
+          if grep -qi '<script' _site/index.html; then
+            printf '%s\n' 'preview contains client JS (ADR 0001)' >&2
+            exit 1
+          fi
           test "$(find _site -type f | wc -l | tr -d '[:space:]')" -eq 1
 
       - name: Configure Pages metadata
@@ -74,6 +79,7 @@ jobs:
         uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: _site
+          retention-days: 1
 
       - name: Deploy to GitHub Pages
         id: deployment
