@@ -1,0 +1,80 @@
+name: Digest preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane_marker:
+        description: Optional lane marker for the preview banner; leave blank to omit it
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install application dependencies
+        run: npm install --no-save --no-package-lock --no-audit --no-fund
+
+      - name: Render digest to one HTML file
+        env:
+          LANE_MARKER: ${{ inputs.lane_marker }}
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          npm start > /tmp/rig-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=false
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8787/health >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            printf '%s\n' 'rig did not become healthy' >&2
+            exit 1
+          fi
+
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8787/digest/2026-10-28 \
+            --output _site/index.html
+          test -s _site/index.html
+          test "$(find _site -type f | wc -l | tr -d '[:space:]')" -eq 1
+
+      - name: Configure Pages metadata
+        uses: actions/configure-pages@v6.0.0
+        with:
+          enablement: false
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5.0.1
